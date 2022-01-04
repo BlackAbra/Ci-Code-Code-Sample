@@ -1,0 +1,591 @@
+Label Function
+STRING FUNCTION Label(STRING sEquipment)
+
+   
+    STRING sLabel = "SEPAM01";
+    INT nPixelsPerColumn    = 6;
+    INT nPixelsPerRow       = 18;
+    INT nXPos               = 0;
+    INT nYPos               = 0;
+   
+
+    nXPos = (StrToInt(PageInfo(12)) - 55 * nPixelsPerColumn)/ 2;
+    nYPos = (StrToInt(PageInfo(13)) - 6 * nPixelsPerRow) / 2;
+
+    nXPos = nXPos + StrToInt(PageInfo(14));
+    nYPos = nYPos + StrToInt(PageInfo(15));
+       
+    FormNew("AC_Curr", 55, 17, 149 + 256);
+    FormPosition(nXPos, nYPos, 0);
+    FormField(2, 3, 52, 9, 1,sLabel ,"",0);
+    FormButton(5, 16, "    @(OK)    ", 0, 1);
+    FormButton(40, 16, "  @(Cancel)  ", 0, 2);
+    FormRead(0);
+   
+        TagWrite(sEquipment + "\Label", sLabel)
+     
+    RETURN "No Error";
+END
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Command Close Function
+
+FUNCTION 
+PLSEquipCommandClose_ADVENSO(STRING sEquip)
+
+	//determine tag & value
+	STRING sTag;
+	STRING sValue;
+	INT iWin;
+
+	sTag = "\CSWI1\Pos_On";
+	sValue = "1";
+	
+
+	IF PLSSecGetPriv(PL_Sec_CBControl) THEN
+	
+		iWin = GetParentOrSelfWindowNumber();
+		//prevent multiple message boxes
+		IF (_GetControlWindow(iWin) = 1) THEN
+		 	
+			// 30-Jan-19 call new function to do 
+					EnterPasswordForControl check
+			IF (PLSSecVerifyPassword(PL_Sec_CBControl)) THEN
+				_PLSEquipCBCommand(sEquip, "@(Close)", sTag, sValue);
+			END
+			//set the flag back to 0
+			_ReleaseControlWindow(iWin);
+		END
+	END
+
+
+	Sleep(1);
+	TagWrite(sEquip + "\CSWI1\Pos_On\ctlVal", 0);
+
+END
+
+
+
+
+
+
+ PLS Open Command
+
+
+FUNCTION
+PLSEquipCommandOpen_ADVENSO(STRING sEquip)
+
+//determine tag & value
+	STRING sTag;
+	STRING sValue;
+	INT iWin;
+	
+
+
+	sTag = "\CSWI1\Pos_Off";
+	sValue = "1";
+	
+
+	IF PLSSecGetPriv(PL_Sec_CBControl) THEN
+	
+		iWin = GetParentOrSelfWindowNumber();
+		//prevent multiple message boxes
+		IF (_GetControlWindow(iWin) = 1) THEN		 	
+			//   call new function to do EnterPasswordForControl check
+			IF (PLSSecVerifyPassword(PL_Sec_CBControl)) THEN
+				_PLSEquipCBCommand(sEquip, "@(Open)", sTag, sValue);
+			END
+		
+			//set the flag back to 0
+			_ReleaseControlWindow(iWin);
+		END
+	END
+
+
+	Sleep(1);
+	TagWrite(sEquip + "\CSWI1\Pos_Off\ctlVal", 0);
+
+END
+
+
+/*
+
+
+
+// Global variable definitions below 
+// <> NOT EUQAL TO 
+
+ 
+MODULE INT mbInitialised = FALSE;
+MODULE STRING msMillisecondHelperPath = "";
+MODULE INT mhGetMsInSecond = -1;
+
+ 
+// Gets the path to the MillisecondHeper (MSec.dll)
+ 
+// <returns>The full path to the MSec.dll file</returns>
+ 
+PRIVATE STRING FUNCTION _GetMillisecondHelperPath()
+	STRING sPath;
+
+	// Do we already have the DLL path?
+	IF msMillisecondHelperPath <> "" THEN
+		RETURN msMillisecondHelperPath;
+	END
+
+	// Was it specified in the [MillisecondHelper]Path section of the INI?
+	sPath = ParameterGet("MillisecondHelper", "Path", "");
+	IF sPath <> "" THEN
+		IF StrUpper(StrRight(sPath,21)) = "MSec.dll" THEN
+			IF FileExist(sPath) THEN
+				msMillisecondHelperPath = sPath;
+				RETURN msMillisecondHelperPath;
+			END
+		END
+		IF FileExist(sPath + "MSec.dll") THEN
+			msMillisecondHelperPath = sPath + "MSec.dll";
+			RETURN msMillisecondHelperPath;
+		END
+		IF FileExist(sPath + "\MSec.dll") THEN
+			msMillisecondHelperPath = sPath + "\MSec.dll";
+			RETURN msMillisecondHelperPath;
+		END
+	END
+
+	// Look in the RUN directory
+	sPath = PathToStr("[RUN]:MSec.dll");
+	IF FileExist(sPath) THEN
+		msMillisecondHelperPath = sPath;
+		RETURN msMillisecondHelperPath;
+	END
+	
+	// Look in the PLS_Include directory
+	sPath = PathToStr("[USER]:PLS_Include\MSec.dll");
+		IF FileExist(sPath) THEN
+		msMillisecondHelperPath = sPath;
+		RETURN msMillisecondHelperPath;
+	END
+	
+	// If all else fails just return the
+	// DLL name and hope it's in the path (unlikley)
+ 	msMillisecondHelperPath = "MSec.dll";
+	RETURN msMillisecondHelperPath;
+
+END
+*/
+ 
+PRIVATE INT FUNCTION _Initialise()
+
+	IF mbInitialised THEN
+		RETURN TRUE;
+	END
+
+	mhGetMsInSecond = DLLOpen(_GetMillisecondHelperPath(), "GetMillisecondsInSecond", "J");
+	IF  mhGetMsInSecond THEN
+		return TRUE;
+	END
+
+END
+
+ 
+INT FUNCTION GetMillisecondsInSecond()
+	IF NOT mbInitialised THEN
+		_Initialise();
+	END
+	RETURN DLLCall(mhGetMsInSecond,"");
+END
+
+Custom Alarm 
+PUBLIC
+INT FUNCTION TabAlmTable_InitDspEquipment(STRING listID, INT listAN, STRING formatName = "", INT windowNumber = -1)
+	INT retValue = TabAlmTable_InitDsp(listID, listAN, FormatName);
+
+	//set to page context
+	FilterEquipmentAlarmTable(listAN);	
+
+	RETURN retValue;
+END
+
+ 
+// <param name="listAN">The animation of the alarm list.</param>
+ 
+PUBLIC FUNCTION FilterEquipmentAlarmTable(INT listAN)
+	STRING equipmentName = AssGetProperty(4, "TagName", 1);	
+	
+	//Filter list to this piece of equipment only
+	INT filterEditSession = AlarmFilterEditOpen(listAN);                    // filter criteria are get / set via filter edit session 
+
+    // specify filter 
+    INT SetError = AlarmFilterEditSet(filterEditSession, "Equipment = ^"" + equipmentName + "^"");  // put double-quote around string type fields in case space character was entered in textbox 
+
+	// apply filter 
+    INT CommitError = AlarmFilterEditCommit(filterEditSession); 
+    INT CloseError = AlarmFilterEditClose(filterEditSession); 
+END
+
+ 
+//		Initializes the alarm list of the tab style templates that use the
+//		lib_controls.AlarmTable genie.
+ 
+// <param name="listID">The ID of the alarm list.</param>
+// <param name="listAN">The animation of the alarm list.</param>
+// <param name="formatName">The custom format name defined in INI parameters.</param>
+// <returns>Success or failure</returns>
+ 
+INT FUNCTION PLS_TabAlmTable_InitDsp(STRING listID, INT listAN, STRING formatName = "")
+	AlarmSetInfo(listAN, 3, PLSAlmDspGetType(listID));
+	RETURN TabAlmTable_InitDsp(listID, listAN, formatName);
+END
+
+ 
+// <param name="viewOnly">Whether alarm list is view only and disable built-in GUI for controls</param>
+// <param name="listHeight">The height of the list in pixels</param>
+// <returns>0 if run successfully or error number if failed</returns>
+ 
+INT FUNCTION PLSAlmDsp_TabAlarm(INT listID, INT count, INT type = 0, STRING clusterName = "", INT listWidth = -1, STRING listFormat = "", INT autoFit = 0, INT viewOnly = 0, INT listHeight = 0)
+	INT retValue;
+	INT listAN = DspGetAnCur();
+
+	// Use type and listFormat set by PLSDspShowAlarm() instead of values passed into this function
+	type = PLSAlmDspGetType(listID);
+	listFormat = PLSAlmDspGetFormat(listID, type);
+	
+	retValue = TabAlarm_Dsp(listID, count, type, clusterName, listWidth, listFormat, autoFit, viewOnly, listHeight);
+
+	// Need to set type again if calling different alarm type on the same alarm list on the same page
+	IF type <> AlarmGetInfo(listAN, 3) THEN
+		AlarmSetInfo(listAN, 3, type);
+	END
+
+	RETURN retValue;
+END
+
+ 
+//		Gets format name for an alarm list.
+ 
+// <param name="listID">The ID of the alarm list.</param>
+// <param name="listType">The type of the alarm list.</param>
+// <returns>The name of the parameter specified for the FORMAT.</returns>
+ 
+STRING 
+FUNCTION PLSAlmDspGetFormat(INT listID, INT listType)
+ 
+	SELECT CASE listType
+		CASE 10
+			RETURN "Summary";	 
+		CASE 15,16
+			RETURN "SOE";
+		CASE ELSE
+			RETURN "Alarm";		 
+	END SELECT
+END
+
+
+
+
+
+
+
+Add  event 
+SELECT CASE listType
+		CASE 15, 16	
+			IF (StrToLocalText("@(Comment)") <> AlarmGetDsp(rowAN, "Classification")) THEN 
+				items = items + 1;  nCommentIdx = items;
+				IF (NOT PLSSecGetPriv(PL_Sec_AlmConfig)) THEN
+					DspPopupMenu(0, "!" + StrToLocalText("@(Add Comment)")+"...");
+				ELSE
+					DspPopupMenu(0, StrToLocalText("@(Add Comment)")+"...");
+				END
+			END
+			
+			items = items + 1;  nAddEventIdx = items;
+			IF (NOT PLSSecGetPriv(PL_Sec_AlmAck)) THEN
+				DspPopupMenu(0, "!" + StrToLocalText("@(Add Event)")+"...");
+			ELSE
+				DspPopupMenu(0, StrToLocalText("@(Add Event)")+"...");
+			END
+	END SELECT 
+
+ 
+	SELECT CASE listType
+		CASE 0, 1, 4, 11, 12
+			items = items + 1; nAckIdx = items;
+			IF (NOT PLSSecGetPriv(PL_Sec_AlmAck)) THEN
+				DspPopupMenu(0, ",!" + StrToLocalText("@(Acknowledge)"));
+			ELSE
+				DspPopupMenu(0, "," + StrToLocalText("@(Acknowledge)"));
+			END
+	END  SELECT
+
+	// disable
+	SELECT CASE listType
+		CASE 0, 1, 4, 11, 12
+			items = items + 1;  nDisableIdx = items;		
+			IF (NOT PLSSecGetPriv(PL_Sec_AlmConfig)) THEN
+				DspPopupMenu(0, "!" + StrToLocalText("@(Disable)"));
+			ELSE
+				DspPopupMenu(0, StrToLocalText("@(Disable)"));
+			END
+	END SELECT
+
+	// enable
+	SELECT CASE listType
+		CASE 3, 4, 11, 12
+			items = items + 1;  nEnableIdx = items;
+			IF (NOT PLSSecGetPriv(PL_Sec_AlmConfig)) THEN
+				DspPopupMenu(0, "!" + StrToLocalText("@(Enable)"));
+			ELSE
+				DspPopupMenu(0, StrToLocalText("@(Enable)"));
+			END
+	END SELECT
+
+// execute command in context menu
+	selection = DspPopupMenu(-1, "");
+
+
+	// Show context menu
+	IF (NOT PLSSecGetPriv(PL_Sec_AlmAck)) THEN
+		DspPopupMenu(0, "!" + StrToLocalText("@(Acknowledge)"));
+	ELSE
+		DspPopupMenu(0, StrToLocalText("@(Acknowledge)"));
+	END
+
+	// execute command in context menu
+	selection = DspPopupMenu(-1, "");
+
+	SELECT CASE selection
+	CASE 1
+		Sleep(0);
+		IF PLSSecGetPriv(PL_Sec_AlmAck) THEN
+			IF (KeySetCursor(rowAN) = 0) THEN	 
+				retValue = AlarmAck(0, 0);
+			END
+		ELSE
+			retValue = 276;		 
+		END
+	END SELECT
+
+	RETURN retValue;
+END
+
+
+ 
+// remove the tag  
+// <> NOT EUQAL TO 
+
+	tag = "";
+	
+	retValue = IsError();
+	IF (nResult = 0  AND retValue = 0) THEN
+		retValue = SOEEventAdd(TimestampCurrent(), msg, tag, cluster);
+	END
+	IF (retValue = 0) THEN
+		TabAlarm_ReloadDataByAN(listAN);
+	ELSE IF (retValue <> 299) THEN
+		Message("@(Error)", "[" + IntToStr(retValue) + "] " + ErrMsg(retValue), 0);
+	END END
+
+	RETURN retValue;
+END
+
+
+
+Alarm Display Comment
+STRING FUNCTION
+PLSAlmDspGetDefaultStateText(STRING sState="")
+	IF (mnPLSAlmDsp_AlarmStateTextLoaded = 0) THEN
+		mnPLSAlmDsp_AlarmStateTextLoaded = 1;
+		msPLSAlmDsp_AlarmStateText[0] = StrToLocalText("@"+"(" + ParameterGet("AlarmStateText", "ON", "Appearance") + ")");
+		msPLSAlmDsp_AlarmStateText[1] = StrToLocalText("@"+"(" + ParameterGet("AlarmStateText", "OFF", "Disappearance") + ")");
+		msPLSAlmDsp_AlarmStateText[2] = StrToLocalText("@"+"(" + ParameterGet("AlarmStateText", "ACK", "Acknowledge") + ")");
+		msPLSAlmDsp_AlarmStateText[3] = StrToLocalText("@"+"(" + ParameterGet("AlarmStateText", "CLE", "Cleared") + ")");
+		msPLSAlmDsp_AlarmStateText[4] = StrToLocalText("@"+"(" + ParameterGet("AlarmStateText", "ENA", "Enable") + ")");
+		msPLSAlmDsp_AlarmStateText[5] = StrToLocalText("@"+"(" + ParameterGet("AlarmStateText", "DIS", "Disable") + ")");
+	END
+	
+	SELECT CASE StrLeft(sState,3)
+	CASE "ON", "ACT"
+		sState = msPLSAlmDsp_AlarmStateText[0];
+	CASE "OFF", "INA"
+		sState = msPLSAlmDsp_AlarmStateText[1];
+	CASE "ACK"
+		sState = msPLSAlmDsp_AlarmStateText[2];
+	CASE "CLE"
+		sState = msPLSAlmDsp_AlarmStateText[3];
+	CASE "ENA"
+		sState = msPLSAlmDsp_AlarmStateText[4];
+	CASE "DIS"
+		sState = msPLSAlmDsp_AlarmStateText[5];
+	END SELECT
+
+	RETURN sState;
+END
+
+Set alarm Time 
+INT FUNCTION
+PLSAlmDspGetTimeMSPos(STRING sTime)
+
+	ErrSet(1);
+
+	INT		nLen		= StrLength(sTime);
+	INT		nPos		= nLen - 1;
+	INT		nChar;
+
+	IF (-1 = mnPLSAlmDsp_TimeMSPos) THEN
+
+		 
+		WHILE (nPos >= 0) DO
+			nChar = StrToChar(StrMid(sTime, nPos, 1));
+
+			IF ((nChar < 48) OR (nChar > 57)) THEN
+				mnPLSAlmDsp_TimeMSPos = nLen - nPos;
+			ELSE
+				nPos = 0;
+			END
+
+			nPos = nPos - 1;
+		END
+	END
+
+	IF (mnPLSAlmDsp_TimeMSPos < 0) THEN RETURN 0; END
+	
+	RETURN (mnPLSAlmDsp_TimeMSPos);
+END
+
+Alarm Queue
+INT FUNCTION PLSAlmQueStartup()
+
+	INT		nCount;
+	INT		nTemp;
+	STRING	sCatExcludeList;
+	STRING	sFormat;
+	STRING	sValue;
+	INT		nCol;
+	INT		nPos;
+
+	ErrSet(1);
+	
+	IF (TRUE = mbPLSAlmQue_Initialized) THEN
+		RETURN (-1);
+	END
+
+	 
+	// Check if this task is not already active and processing alarms
+ 
+	nCount = mnPLSAlmQue_ProcessCount;
+	Sleep(2);
+	IF (nCount <> mnPLSAlmQue_ProcessCount) THEN
+		RETURN (-1);
+	END
+ 
+	// Check task if it is disabled
+	 
+	mbPLSAlmQue_Disabled = StrToInt(ParameterGet("PLSAlarmQueue", "Disable", "0"));
+	IF (mbPLSAlmQue_Disabled > 0) THEN
+		mbPLSAlmQue_Disabled = TRUE;
+		PLSAlmQueSystemLog(StrToLocalText("@(Disabled)"));
+		RETURN (-1);
+	END
+
+Alarm Sound 
+FUNCTION
+_PLSAlmSound_Check()
+
+	INT		hBrowse;
+	INT 	nError;
+	INT 	nPriority;
+	INT 	bReset;
+	INT 	nArea;
+	INT 	hArea;
+	INT		nClusterIdx;
+	STRING	sCluster;
+	STRING	sClusterList = PLSClusterGetList("Alarm");
+
+	ErrSet(1);
+
+	hArea = GetArea();
+
+	WHILE (1) DO
+
+		 
+		nClusterIdx = 1;
+		sCluster = PLSStrWordCSV(sClusterList, nClusterIdx);
+		WHILE (sCluster <> "") DO
+			IsError();
+			bReset = TagRead("PLSALM_SOUND_RESET", 0, sCluster);
+			nError = IsError();
+		
+			IF ((0 = nError) AND (FALSE <> bReset)) THEN
+				mnPLSAlmSound_Priority = -1;
+				TagWrite("PLSALM_SOUND_RESET", 0, 0, 0, sCluster);
+			END
+		
+			IsError();
+			nPriority = TagRead("PLSALM_SOUND_LEVEL", 0, sCluster);
+			nError = IsError();
+		
+			IF ((0 = nError) AND (nPriority <> mnPLSAlmSound_Priority)) THEN
+				TagWrite("PLSALM_SOUND_LEVEL", mnPLSAlmSound_Priority, 0, 0, sCluster);
+			END
+
+			nClusterIdx = nClusterIdx + 1;
+			sCluster = PLSStrWordCSV(sClusterList, nClusterIdx);
+		END
+
+		SleepMS(1000);
+	END
+END
+
+Check user valid
+	INT FUNCTION
+PLS_ValidateReportingUser()
+	INT sPrivLevel = StrToInt(ParameterGet("Reporting", "PrivLevel", "0"));	
+	INT sArea = StrToInt(ParameterGet("Reporting", "Area", "0"));
+	
+	RETURN GetPriv(sPrivLevel, sArea);
+END
+
+
+ 
+E mail Report 
+
+FUNCTION
+PLS_EmailReport()
+ErrSet(1);
+STRING FilePath = ParameterGet("CtEdit","User","") + "\PLS_Include\
+ReportMailer.exe " + "MultiDeviceReport SampleConfiguration SampleList
+" +
+"^"C:\ProgramData\Schneider Electric\Power SCADA Operation\User\PLS_
+Example^"";
+Exec(FilePath);
+END
