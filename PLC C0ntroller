@@ -27,37 +27,6 @@ STRING FUNCTION Label(STRING sEquipment)
     RETURN "No Error";
 END
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 Command Close Function
 
 FUNCTION 
@@ -93,11 +62,6 @@ PLSEquipCommandClose_ADVENSO(STRING sEquip)
 	TagWrite(sEquip + "\CSWI1\Pos_On\ctlVal", 0);
 
 END
-
-
-
-
-
 
  PLS Open Command
 
@@ -139,7 +103,6 @@ END
 
 
 /*
-
 
 
 // Global variable definitions below 
@@ -311,11 +274,6 @@ FUNCTION PLSAlmDspGetFormat(INT listID, INT listType)
 END
 
 
-
-
-
-
-
 Add  event 
 SELECT CASE listType
 		CASE 15, 16	
@@ -397,7 +355,6 @@ SELECT CASE listType
 
 	RETURN retValue;
 END
-
 
  
 // remove the tag  
